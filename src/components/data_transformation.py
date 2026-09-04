@@ -36,7 +36,7 @@ class DataTransformation:
 
     def get_data_transformer_object(self):
         try:
-            imputer_step = ('imputer', SimpleImputer(strategy='constant', fill_value=0))    
+            imputer_step = ('imputer', SimpleImputer(strategy='median'))    
             scaler_step = ('scaler', RobustScaler())
 
             preprocessor = Pipeline(

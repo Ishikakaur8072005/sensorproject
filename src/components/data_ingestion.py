@@ -37,8 +37,8 @@ class DataIngestion:
             return df
         
         except Exception as e:
-            logging.warning(f"Could not fetch data from MongoDB ({e}). Falling back to local notebook dataset.")
-            local_csv_path = os.path.join("notebooks", "wafer_23012020_041211.csv")
+            logging.warning(f"Could not fetch data from MongoDB ({e}). Falling back to local cleaned dataset.")
+            local_csv_path = os.path.join("notebooks", "wafer_secom_cleaned.csv")
             if os.path.exists(local_csv_path):
                 df = pd.read_csv(local_csv_path)
                 if "Unnamed: 0" in df.columns:
