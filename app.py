@@ -67,7 +67,7 @@ def predict():
                 return jsonify({"status": "error", "message": "No file uploaded"}), 400
             
             df["Prediction"] = predictions
-            df["Prediction"] = df["Prediction"].map({0: "Bad / Faulty", 1: "Good"})
+            df["Prediction"] = df["Prediction"].map({0: "Good", 1: "Bad / Faulty"})
             return jsonify({
                 "status": "success",
                 "total_records": len(df),
