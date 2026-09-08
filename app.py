@@ -7,36 +7,286 @@ app = Flask(__name__)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Sensor Fault Detection</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f6f9; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h2 { color: #333; }
-        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; text-decoration: none; cursor: pointer; }
-        .btn:hover { background: #0056b3; }
-        form { margin-top: 20px; }
-        input[type="file"] { margin-bottom: 15px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wafer Fault Detection</title>
+<style>
+  :root {
+    --bg: #15181B;
+    --panel: #1D2024;
+    --panel-border: #2A2E33;
+    --text: #E8E6E1;
+    --text-dim: #8B9096;
+    --pass: #4FAE9E;
+    --fault: #D98E3E;
+    --fault-bright: #E8A33D;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 48px 24px 80px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  .masthead { margin-bottom: 40px; }
+  .masthead .tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+  .masthead h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 6px 0 0;
+    letter-spacing: -0.01em;
+  }
+  .masthead p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin: 8px 0 0;
+    max-width: 520px;
+    line-height: 1.5;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .panel .desc {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin: 0 0 18px;
+    line-height: 1.5;
+  }
+
+  button, .file-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 4px;
+    border: 1px solid var(--panel-border);
+    background: #262A2F;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  button:hover, .file-btn:hover { border-color: #454B52; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  input[type="file"] { display: none; }
+  .file-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .file-name { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+  .result {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--panel-border);
+    display: none;
+  }
+  .result.show { display: block; }
+
+  .status-line {
+    font-family: var(--mono);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot.ok { background: var(--pass); }
+  .dot.err { background: var(--fault-bright); }
+  .dot.pending { background: var(--text-dim); animation: pulse 1.2s infinite ease-in-out; }
+  @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--panel-border);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .metric {
+    background: var(--panel);
+    padding: 14px 16px;
+  }
+  .metric .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .metric .value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .metric .value.pass { color: var(--pass); }
+  .metric .value.fault { color: var(--fault-bright); }
+
+  .pred-list {
+    font-family: var(--mono);
+    font-size: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    margin-top: 14px;
+  }
+  .pred-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .pred-row:last-child { border-bottom: none; }
+  .pred-row .tag-fault { color: var(--fault-bright); }
+  .pred-row .tag-pass { color: var(--pass); }
+
+  .error-box {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fault-bright);
+    background: rgba(217, 142, 62, 0.08);
+    border: 1px solid rgba(217, 142, 62, 0.3);
+    border-radius: 4px;
+    padding: 10px 14px;
+    white-space: pre-wrap;
+  }
+
+  footer {
+    max-width: 760px;
+    margin: 40px auto 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h2>Sensor Fault Detection Pipeline</h2>
-        <p>Trigger model training or upload sensor data CSV for fault prediction.</p>
-        
-        <form action="/train" method="post">
-            <button type="submit" class="btn">Start Training Pipeline</button>
-        </form>
-        
-        <hr style="margin: 30px 0;">
+<div class="wrap">
 
-        <h3>Upload Wafer Data CSV for Prediction</h3>
-        <form action="/predict" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".csv" required><br>
-            <button type="submit" class="btn">Predict Faults</button>
-        </form>
+  <div class="masthead">
+    <div class="tag">UCI SECOM &middot; EasyEnsembleClassifier</div>
+    <h1>Wafer Fault Detection</h1>
+    <p>Runs the sensor-data pipeline against a classifier tuned for a rare-fault, high-dimensional dataset. Trigger a retrain, or upload a batch of wafer readings to flag likely faults.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Retrain model</h2>
+    <p class="desc">Re-runs ingestion, transformation, and training end to end using the current dataset.</p>
+    <button id="trainBtn" onclick="runTrain()">Start training pipeline</button>
+    <div class="result" id="trainResult"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Predict from CSV</h2>
+    <p class="desc">Upload wafer sensor readings (same feature columns as training, no target column) to get per-row predictions.</p>
+    <div class="file-row">
+      <label class="file-btn" for="fileInput">Choose CSV</label>
+      <input type="file" id="fileInput" accept=".csv" onchange="fileChosen()">
+      <span class="file-name" id="fileName">No file selected</span>
+      <button id="predictBtn" onclick="runPredict()" disabled>Predict faults</button>
     </div>
+    <div class="result" id="predictResult"></div>
+  </div>
+
+</div>
+<footer>sensor_project &middot; local dev server</footer>
+
+<script>
+function fileChosen() {
+  const input = document.getElementById('fileInput');
+  const name = input.files.length ? input.files[0].name : 'No file selected';
+  document.getElementById('fileName').textContent = name;
+  document.getElementById('predictBtn').disabled = !input.files.length;
+}
+
+async function runTrain() {
+  const btn = document.getElementById('trainBtn');
+  const box = document.getElementById('trainResult');
+  btn.disabled = true;
+  box.className = 'result show';
+  box.innerHTML = '<div class="status-line"><span class="dot pending"></span>Training in progress&hellip; this can take a moment.</div>';
+
+  try {
+    const res = await fetch('/train', { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'success') {
+      box.innerHTML = `
+        <div class="status-line"><span class="dot ok"></span>Training completed</div>
+        <div class="error-box" style="color: var(--text-dim); border-color: var(--panel-border); background: transparent;">Saved model: ${data.model_path || 'artifacts/model.pkl'}</div>
+      `;
+    } else {
+      box.innerHTML = `<div class="status-line"><span class="dot err"></span>Training failed</div><div class="error-box">${data.message}</div>`;
+    }
+  } catch (err) {
+    box.innerHTML = `<div class="status-line"><span class="dot err"></span>Request failed</div><div class="error-box">${err}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runPredict() {
+  const input = document.getElementById('fileInput');
+  const btn = document.getElementById('predictBtn');
+  const box = document.getElementById('predictResult');
+  if (!input.files.length) return;
+
+  btn.disabled = true;
+  box.className = 'result show';
+  box.innerHTML = '<div class="status-line"><span class="dot pending"></span>Scoring wafers&hellip;</div>';
+
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.status === 'success') {
+      const good = data.predictions_summary['Good'] || 0;
+      const bad = data.predictions_summary['Bad / Faulty'] || 0;
+      const rows = data.predictions.map((p, i) => `
+        <div class="pred-row">
+          <span>Row ${i + 1}</span>
+          <span class="${p === 'Bad / Faulty' ? 'tag-fault' : 'tag-pass'}">${p}</span>
+        </div>`).join('');
+      box.innerHTML = `
+        <div class="status-line"><span class="dot ok"></span>Scored ${data.total_records} records</div>
+        <div class="metric-grid">
+          <div class="metric"><div class="label">Flagged as good</div><div class="value pass">${good}</div></div>
+          <div class="metric"><div class="label">Flagged as faulty</div><div class="value fault">${bad}</div></div>
+        </div>
+        <div class="pred-list">${rows}</div>
+      `;
+    } else {
+      box.innerHTML = `<div class="status-line"><span class="dot err"></span>Prediction failed</div><div class="error-box">${data.message}</div>`;
+    }
+  } catch (err) {
+    box.innerHTML = `<div class="status-line"><span class="dot err"></span>Request failed</div><div class="error-box">${err}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
 </body>
 </html>
 """
@@ -65,7 +315,7 @@ def predict():
                 predictions = pipeline.predict(df)
             else:
                 return jsonify({"status": "error", "message": "No file uploaded"}), 400
-            
+
             df["Prediction"] = predictions
             df["Prediction"] = df["Prediction"].map({0: "Good", 1: "Bad / Faulty"})
             return jsonify({
