@@ -1,3 +1,4 @@
+shap
 Flask
 Werkzeug
 pymongo==4.2.0
